@@ -113,3 +113,34 @@ func (obj *Client) Client(ctx context.Context, conn net.Conn, spec *Spec, utlsCo
 	err = utlsConn.HandshakeContext(ctx)
 	return utlsConn, err
 }
+
+func (obj *Client) ClientUtls(ctx context.Context, conn net.Conn, utlsSpec utls.ClientHelloSpec, utlsConfig *utls.Config, serverName string, forceHttp1 bool) (utlsConn *utls.UConn, err error) {
+	if forceHttp1 {
+		utlsConfig.NextProtos = []string{"http/1.1"}
+		for _, Extension := range utlsSpec.Extensions {
+			alpns, ok := Extension.(*utls.ALPNExtension)
+			if ok {
+				alpns.AlpnProtocols = []string{"http/1.1"}
+				break
+			}
+		}
+	}
+	utlsConfig.ServerName = serverName
+	//obj.changeSpec(serverName, utlsSpec)
+	utlsConn = utls.UClient(conn, utlsConfig, utls.HelloCustom)
+	uspec := utls.ClientHelloSpec(utlsSpec)
+	for {
+		err = utlsConn.ApplyPreset(&uspec)
+		if err == nil {
+			break
+		}
+		if !obj.setSpecErrWithError(serverName, err) {
+			return nil, err
+		}
+		if !obj.changeSpec(serverName, utlsSpec) {
+			return nil, err
+		}
+	}
+	err = utlsConn.HandshakeContext(ctx)
+	return utlsConn, err
+}
