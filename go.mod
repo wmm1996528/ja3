@@ -1,4 +1,4 @@
-module github.com/wmm19968/ja3
+module github.com/wmm1996528/ja3
 
 go 1.24.0
 
